@@ -28,6 +28,6 @@ gateway_http_url() {
 }
 gateway_https_url() {
   if [[ -n "${GATEWAY_HTTPS_URL:-}" ]]; then echo "$GATEWAY_HTTPS_URL"; return; fi
-  local u; u="$(gateway_http_url)"
+  local u; u="$(gateway_http_url)"; u="https://${u#http://}"
   if [[ "$u" == *:8080 ]]; then echo "${u%:8080}:8443"; else echo "${u%:30080}:30443"; fi
 }
