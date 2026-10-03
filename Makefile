@@ -1,7 +1,7 @@
 .DEFAULT_GOAL := help
 SHELL := /bin/bash
 
-.PHONY: passport report help kind-up kind-down deploy verify teardown lint render
+.PHONY: test-rules passport report help kind-up kind-down deploy verify teardown lint render
 
 help: ## Show targets
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN{FS=":.*?## "}{printf "  %-10s %s\n",$$1,$$2}'
@@ -33,3 +33,6 @@ report: ## Run verify and write docs/test-report.md
 
 passport: ## Rebuild docs/passport/Паспорт.pdf
 	python3 docs/passport/build.py
+
+test-rules: ## Unit-test Prometheus alert rules with promtool (needs Docker)
+	docker run --rm --entrypoint promtool -v $(CURDIR):/w -w /w/tests/prometheus prom/prometheus:v3.13.4 test rules slo-rules_test.yml
