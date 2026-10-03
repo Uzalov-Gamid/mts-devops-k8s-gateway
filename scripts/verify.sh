@@ -63,6 +63,15 @@ retry 60 has_hist && ok "latency histogram envoy_cluster_upstream_rq_time_bucket
 has_5xx() { [[ -n "$(q 'sum(envoy_cluster_upstream_rq_xx{envoy_response_code_class="2"})')" ]]; }
 retry 60 has_5xx && ok "response-code series envoy_cluster_upstream_rq_xx present" || fail "Envoy response-code series missing"
 
+log "Grafana"
+kubectl -n monitoring port-forward svc/grafana 13000:3000 >/dev/null 2>&1 & PIDS+=($!)
+graf() { curl -fsS --max-time 10 "http://127.0.0.1:13000$1"; }
+retry 60 graf /api/health >/dev/null && ok "Grafana is healthy" || fail "Grafana not reachable"
+dash_ok() { graf '/api/search?query=Gateway' | jq -e 'map(select(.uid=="gateway-overview"))|length==1' >/dev/null; }
+retry 60 dash_ok && ok "dashboard 'Gateway and demo app overview' is provisioned" || fail "Grafana dashboard missing"
+ds_ok() { graf /api/datasources/proxy/uid/prom/api/v1/query?query=up | jq -e '.status=="success"' >/dev/null; }
+retry 60 ds_ok && ok "Grafana queries Prometheus through the provisioned datasource" || fail "Grafana datasource cannot reach Prometheus"
+
 log "Logging (Filebeat -> Elasticsearch)"
 marker="verify-$(date +%s)"
 body "$HTTP/$marker" >/dev/null
