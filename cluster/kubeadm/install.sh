@@ -77,4 +77,7 @@ if [[ -n "${SUDO_USER:-}" ]]; then
   log "kubeconfig copied to $home/.kube/config"
 fi
 
+log "Installing client tools (helm)"
+"$(dirname "$(readlink -f "$0")")/tools.sh"
+
 kubectl get nodes -o wide
