@@ -3,6 +3,7 @@ kind: Kustomization
 resources:
   - rbac.yaml
   - prometheus.yaml
+  - grafana.yaml
 configMapGenerator:
   - name: prometheus-config
     namespace: monitoring
@@ -10,3 +11,15 @@ configMapGenerator:
       - prometheus.yml
       - rules.yml
       - slo-rules.yml
+  - name: grafana-datasource
+    namespace: monitoring
+    files:
+      - grafana/datasource.yaml
+  - name: grafana-dashboard-providers
+    namespace: monitoring
+    files:
+      - grafana/dashboards.yaml
+  - name: grafana-dashboards
+    namespace: monitoring
+    files:
+      - grafana/gateway-overview.json
