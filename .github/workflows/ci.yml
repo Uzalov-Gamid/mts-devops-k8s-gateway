@@ -47,6 +47,8 @@ jobs:
       - name: Verify (Gateway API, Prometheus, Filebeat)
         shell: bash   # bash -eo pipefail: a failing verify must fail the step even through tee
         run: make verify 2>&1 | tee verify.log
+      - name: Chaos test (kill pods under load)
+        run: make chaos
       - name: Collect diagnostics
         if: always()
         run: |

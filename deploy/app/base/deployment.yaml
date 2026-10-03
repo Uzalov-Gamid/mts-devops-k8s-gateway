@@ -12,6 +12,8 @@ spec:
       labels:
         app.kubernetes.io/name: hello
     spec:
+      # Graceful shutdown: keep serving while the endpoint is removed from Envoy, then stop.
+      terminationGracePeriodSeconds: 30
       securityContext:
         runAsNonRoot: true
         seccompProfile:
@@ -25,9 +27,13 @@ spec:
           env:
             - name: GREETING
               value: "Hello World!"
+          lifecycle:
+            preStop:
+              exec:
+                command: ["sleep", "8"]
           readinessProbe:
             httpGet: {path: /healthz, port: http}
-            periodSeconds: 5
+            periodSeconds: 2
           livenessProbe:
             httpGet: {path: /healthz, port: http}
             initialDelaySeconds: 10
