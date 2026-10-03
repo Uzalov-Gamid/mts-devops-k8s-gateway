@@ -1,7 +1,7 @@
 .DEFAULT_GOAL := help
 SHELL := /bin/bash
 
-.PHONY: help kind-up kind-down deploy verify teardown lint render
+.PHONY: report help kind-up kind-down deploy verify teardown lint render
 
 help: ## Show targets
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN{FS=":.*?## "}{printf "  %-10s %s\n",$$1,$$2}'
@@ -27,3 +27,6 @@ render: ## Render all kustomizations to stdout
 lint: ## Offline validation: shellcheck + kubeconform on rendered manifests
 	shellcheck scripts/*.sh cluster/kubeadm/*.sh
 	$(MAKE) -s render | kubeconform -strict -summary -ignore-missing-schemas -
+
+report: ## Run verify and write docs/test-report.md
+	./scripts/report.sh
