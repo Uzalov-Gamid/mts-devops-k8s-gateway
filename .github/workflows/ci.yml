@@ -22,6 +22,8 @@ jobs:
           mkdir -p /tmp/tok && echo x > /tmp/tok/token
           docker run --rm --entrypoint sh -v "$PWD/deploy/monitoring:/m" -v /tmp/tok:/var/run/secrets/kubernetes.io/serviceaccount \
             prom/prometheus:v3.13.4 -c 'mkdir -p /etc/prometheus/rules && cp /m/rules.yml /etc/prometheus/rules/ && promtool check config /m/prometheus.yml'
+      - name: Unit-test Prometheus SLO alert rules
+        run: make test-rules
       - name: Validate Filebeat config
         run: |
           docker run --rm -e NODE_NAME=ci -v "$PWD/deploy/logging/filebeat.yml:/etc/filebeat.yml:ro" \
