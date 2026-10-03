@@ -29,8 +29,7 @@ retry 120 body "$HTTP/" >/dev/null || fail "gateway did not answer on $HTTP/"
 [[ "$(body "$HTTP/v2")" == "Hello World! (v2)" ]]        && ok "GET /v2        -> Hello World! (v2)" || fail "GET /v2"
 [[ "$(body -H 'Host: v2.demo.local' "$HTTP/")" == "Hello World! (v2)" ]] \
                                                          && ok "Host v2.demo.local -> v2"            || fail "hostname routing"
-[[ "$(body -k --resolve demo.local:${HTTPS##*:}:127.0.0.1 "$HTTPS/" 2>/dev/null || body -k "$HTTPS/")" == "Hello World!" ]] \
-                                                         && ok "HTTPS (TLS terminate at Gateway)"    || fail "HTTPS listener"
+[[ "$(body -k "$HTTPS/")" == "Hello World!" ]]            && ok "HTTPS (TLS terminated at the Gateway)" || fail "HTTPS listener"
 v2=0; for _ in $(seq 1 100); do [[ "$(body "$HTTP/canary")" == *v2* ]] && v2=$((v2+1)); done
 (( v2 > 0 && v2 < 100 )) && ok "traffic split /canary: ${v2}/100 requests reached v2 (target ~20)" || fail "canary split: ${v2}/100 reached v2"
 
