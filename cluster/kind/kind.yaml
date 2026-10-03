@@ -1,0 +1,14 @@
+# Local single-node cluster for quick checks and CI.
+# Ports 30080/30443 are the NodePorts of the Envoy Gateway data plane
+# and are published on the host as 8080/8443.
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+nodes:
+  - role: control-plane
+    extraPortMappings:
+      - containerPort: 30080
+        hostPort: 8080
+        protocol: TCP
+      - containerPort: 30443
+        hostPort: 8443
+        protocol: TCP
