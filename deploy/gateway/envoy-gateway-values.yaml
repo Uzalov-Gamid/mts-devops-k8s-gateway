@@ -1,0 +1,4 @@
+# Values for oci://docker.io/envoyproxy/gateway-helm (chart v1.9.1).
+# The chart also installs the Gateway API CRDs (standard channel).
+deployment:
+  replicas: 1
