@@ -42,6 +42,7 @@ spec:
           volumeMounts:
             - {name: config, mountPath: /etc/prometheus/prometheus.yml, subPath: prometheus.yml}
             - {name: config, mountPath: /etc/prometheus/rules/rules.yml, subPath: rules.yml}
+            - {name: config, mountPath: /etc/prometheus/rules/slo-rules.yml, subPath: slo-rules.yml}
             - {name: data, mountPath: /prometheus}
       volumes:
         - name: config
