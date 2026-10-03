@@ -1,0 +1,17 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: demo
+nameSuffix: -v2
+resources:
+  - ../base
+labels:
+  - pairs:
+      app.kubernetes.io/version: v2
+    includeSelectors: true
+    includeTemplates: true
+patches:
+  - target: {kind: Deployment, name: app}
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/env/0/value
+        value: "Hello World! (v2)"

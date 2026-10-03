@@ -1,0 +1,32 @@
+# Rendered by the nginx image entrypoint (envsubst only touches defined env vars: GREETING).
+log_format json_access escape=json
+  '{"time":"$time_iso8601","remote_addr":"$remote_addr","request_id":"$request_id",'
+  '"method":"$request_method","host":"$host","uri":"$request_uri","status":$status,'
+  '"bytes":$body_bytes_sent,"request_time":$request_time,"user_agent":"$http_user_agent",'
+  '"x_forwarded_for":"$http_x_forwarded_for"}';
+
+server {
+  listen 8080;
+  access_log /dev/stdout json_access;
+  error_log  /dev/stderr warn;
+
+  location = /healthz {
+    access_log off;
+    default_type text/plain;
+    return 200 "ok\n";
+  }
+
+  location / {
+    default_type text/plain;
+    return 200 "${GREETING}\n";
+  }
+}
+
+# Internal-only endpoint scraped by the nginx-prometheus-exporter sidecar.
+server {
+  listen 127.0.0.1:8081;
+  access_log off;
+  location = /stub_status {
+    stub_status;
+  }
+}
