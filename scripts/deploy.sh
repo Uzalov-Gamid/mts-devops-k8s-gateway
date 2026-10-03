@@ -28,6 +28,13 @@ else
   echo "secret demo/demo-tls already exists"
 fi
 
+log "4b/6 Grafana admin password (generated, not stored in git)"
+if ! kubectl -n monitoring get secret grafana-admin >/dev/null 2>&1; then
+  kubectl -n monitoring create secret generic grafana-admin --from-literal=password="$(openssl rand -base64 18)"
+else
+  echo "secret monitoring/grafana-admin already exists"
+fi
+
 log "5/6 Gateway API resources (EnvoyProxy, GatewayClass, Gateway, HTTPRoutes)"
 kubectl apply -k "$ROOT/deploy/gateway"
 
@@ -39,7 +46,7 @@ log "Waiting for everything to become ready"
 kubectl -n demo rollout status deploy/app-v1 deploy/app-v2 --timeout=300s
 kubectl -n demo wait --for=condition=Programmed gateway/demo --timeout=300s
 kubectl -n envoy-gateway-system wait --for=condition=Available deploy --all --timeout=300s
-kubectl -n monitoring rollout status deploy/prometheus --timeout=300s
+kubectl -n monitoring rollout status deploy/prometheus deploy/grafana --timeout=300s
 kubectl -n logging rollout status statefulset/elasticsearch --timeout=600s
 kubectl -n logging rollout status ds/filebeat --timeout=300s
 
