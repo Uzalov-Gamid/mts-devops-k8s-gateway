@@ -4,3 +4,5 @@ resources:
   - gatewayclass.yaml
   - gateway.yaml
   - httproutes.yaml
+  - httproutes-advanced.yaml
+  - policies.yaml
