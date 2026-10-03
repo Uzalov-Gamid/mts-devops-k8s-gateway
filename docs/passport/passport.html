@@ -22,7 +22,7 @@ svg text { font: 8pt "DejaVu Sans", Arial, sans-serif; }
 <tr><td>Инструменты автоматизации</td><td>Bash, Make, Kustomize, Helm, GitHub Actions</td></tr>
 <tr><td>Логирование</td><td>Filebeat 9.4.7 (DaemonSet) → Elasticsearch 9.4.7</td></tr>
 <tr><td>Развёртывание Prometheus</td><td>Манифесты Kustomize, Prometheus v3.13.4, service discovery по Kubernetes API</td></tr>
-<tr><td>ОС, на которой тестировалось</td><td>Ubuntu 24.04 (скрипты рассчитаны на неё; e2e-прогон в CI на ubuntu-24.04, отчёт в <code>docs/test-report.md</code>)</td></tr>
+<tr><td>ОС, на которой тестировалось</td><td>Ubuntu 24.04: деплой и проверки пройдены в CI на ubuntu-24.04 (kind), отчёт в <code>docs/test-report.md</code>; kubeadm-скрипт в CI не запускается</td></tr>
 </table>
 <svg viewBox="0 0 700 250" width="100%" xmlns="http://www.w3.org/2000/svg">
  <rect x="2" y="2" width="696" height="246" fill="none" stroke="#888" stroke-dasharray="5 3"/>
