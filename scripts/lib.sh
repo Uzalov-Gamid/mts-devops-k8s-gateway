@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# shellcheck disable=SC2034  # ROOT/FAILED are used by the scripts that source this file
 # Shared helpers for deploy.sh / verify.sh / teardown.sh
 set -euo pipefail
 
