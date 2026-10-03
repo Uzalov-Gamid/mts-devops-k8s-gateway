@@ -40,7 +40,7 @@
 
 ## Требования к среде
 
-- Ubuntu 24.04 (на ней проверялось решение), 2+ CPU, 6+ ГБ RAM, 20 ГБ диска, доступ в интернет
+- Ubuntu 24.04 (на ней проверялся деплой в CI, см. `docs/test-report.md`), 2+ CPU, 6+ ГБ RAM, 20 ГБ диска, доступ в интернет
   (pkgs.k8s.io, docker.io, docker.elastic.co, raw.githubusercontent.com).
 - Права sudo для установки кластера. Для самого `make deploy` права root не нужны.
 - Инструменты: `kubectl`, `helm`, `openssl`, `curl`, `jq`, `make`. `kubectl` ставится вместе с kubeadm, `helm` — `cluster/kubeadm/tools.sh`.
@@ -119,6 +119,7 @@ Filebeat (DaemonSet) читает stdout/stderr контейнеров namespace
 
 ## Известные ограничения
 
+- Скрипт `cluster/kubeadm/install.sh` в CI не запускается (нужна полноценная ВМ); в CI проверен весь остальной стек на kind под ubuntu-24.04. Отчёт: `docs/test-report.md`.
 - Одна нода и `emptyDir` для Prometheus/Elasticsearch: данные теряются при пересоздании pod. Для продакшна нужны PVC, реплики и ILM.
 - Elasticsearch без аутентификации, доступен только внутри кластера (демонстрационная конфигурация).
 - Самоподписанный сертификат, `curl -k`. Для боевого TLS нужен cert-manager.
