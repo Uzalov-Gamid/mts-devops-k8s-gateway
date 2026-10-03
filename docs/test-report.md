@@ -34,4 +34,4 @@ Sample document stored in Elasticsearch (Filebeat → `demo-logs-*`):
 ## Scope of this test
 
 - Covered: all manifests, Gateway API routing and policies, Prometheus targets, queries and SLO rules, Grafana, Filebeat → Elasticsearch, idempotent redeploy, pod-failure resilience, on Ubuntu 24.04 with kind.
-- Not covered by CI: `cluster/kubeadm/install.sh` (needs a full VM). Run it on a clean Ubuntu 24.04 host and then `make deploy && make verify`; `make report` rewrites this file with that run's output.
+- Not covered by CI: `cluster/kubeadm/install.sh` (needs a full VM). It was run by hand on a clean Ubuntu 24.04.5 VM (4 vCPU / 8 GB, Selectel): Kubernetes v1.35.9, node Ready in about 20 s, then `make deploy`, `make verify` (ALL CHECKS PASSED) and `make chaos` (0 of 347 requests failed) all passed; screenshots are in `docs/screenshots/`. `make report` rewrites this file with a run's output.

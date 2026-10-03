@@ -43,7 +43,7 @@
 - Ubuntu 24.04 (на ней проверялся деплой в CI, см. `docs/test-report.md`), 2+ CPU, 6+ ГБ RAM, 20 ГБ диска, доступ в интернет
   (pkgs.k8s.io, docker.io, docker.elastic.co, raw.githubusercontent.com).
 - Права sudo для установки кластера. Для самого `make deploy` права root не нужны.
-- Инструменты: `kubectl`, `helm`, `openssl`, `curl`, `jq`, `make`. `kubectl` ставится вместе с kubeadm, `helm` — `cluster/kubeadm/tools.sh`.
+- Инструменты: `kubectl`, `helm`, `openssl`, `curl`, `jq`, `make`. `kubectl` ставится вместе с kubeadm, `helm` — `cluster/kubeadm/tools.sh` (его вызывает `install.sh`).
 
 ## Развёртывание (пошагово)
 
@@ -51,8 +51,7 @@
 git clone https://github.com/Uzalov-Gamid/mts-devops-k8s-gateway.git && cd mts-devops-k8s-gateway
 
 # 1. Kubernetes через kubeadm (одна нода, идемпотентно)
-sudo ./cluster/kubeadm/install.sh
-./cluster/kubeadm/tools.sh          # helm
+sudo ./cluster/kubeadm/install.sh   # kubeadm, containerd, Flannel и helm (через tools.sh)
 
 # 2. Всё остальное: Envoy Gateway, приложение, Gateway/HTTPRoute, Prometheus, Elasticsearch, Filebeat
 make deploy
@@ -127,9 +126,23 @@ Filebeat (DaemonSet) читает stdout/stderr контейнеров namespace
   лимиты ресурсов, PodDisruptionBudget, секреты не хранятся в репозитории, исключения Trivy обоснованы в `.trivyignore.yaml`.
 - Отчёт о прогоне: `docs/test-report.md`, `make report` пересоздаёт его для вашего кластера.
 
+## Проверка на реальной ВМ
+
+Полный прогон на чистой ВМ Ubuntu 24.04.5 (4 vCPU / 8 ГБ RAM, Selectel): `install.sh` → `make deploy` → `make verify` → `make chaos`.
+Результат: Kubernetes v1.35.9 (нода Ready за ~20 с), все поды Running, `ALL CHECKS PASSED`, chaos: 0 из 347 запросов упали.
+Скриншоты терминала (1–3) отрисованы из реального вывода команд, а снимки Grafana и Prometheus (4–5) сделаны с работающих сервисов через SSH-туннель.
+
+| Кластер | `make verify` |
+|---|---|
+| ![кластер](docs/screenshots/01-cluster.png) | ![verify](docs/screenshots/02-verify.png) |
+| **`make chaos`** | **Grafana** |
+| ![chaos](docs/screenshots/03-chaos.png) | ![grafana](docs/screenshots/04-grafana.png) |
+
+Prometheus Targets: ![targets](docs/screenshots/05-prometheus-targets.png)
+
 ## Известные ограничения
 
-- Скрипт `cluster/kubeadm/install.sh` в CI не запускается (нужна полноценная ВМ); в CI проверен весь остальной стек на kind под ubuntu-24.04. Отчёт: `docs/test-report.md`.
+- Скрипт `cluster/kubeadm/install.sh` в CI не запускается (нужна полноценная ВМ); в CI проверен весь остальной стек на kind под ubuntu-24.04. Отдельно скрипт и весь стек прогнаны вручную на чистой ВМ Ubuntu 24.04 (4 vCPU / 8 ГБ, Selectel), см. раздел «Проверка на реальной ВМ». Отчёт: `docs/test-report.md`.
 - Одна нода и `emptyDir` для Prometheus/Elasticsearch: данные теряются при пересоздании pod. Для продакшна нужны PVC, реплики и ILM.
 - Elasticsearch и Grafana работают с записываемой корневой ФС (см. `.trivyignore.yaml`).
 - Elasticsearch без аутентификации, доступен только внутри кластера (демонстрационная конфигурация).
