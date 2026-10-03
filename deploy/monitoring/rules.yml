@@ -1,0 +1,19 @@
+groups:
+  - name: demo-app
+    rules:
+      - record: demo:nginx_requests:rate1m
+        expr: sum(rate(nginx_http_requests_total[1m]))
+      - alert: AppDown
+        expr: sum(nginx_up) < 1
+        for: 1m
+        labels: {severity: critical}
+        annotations:
+          summary: "No healthy nginx instance behind the Gateway"
+      - alert: Envoy5xxRatioHigh
+        expr: |
+          sum(rate(envoy_cluster_upstream_rq_xx{envoy_response_code_class="5"}[5m]))
+            / clamp_min(sum(rate(envoy_cluster_upstream_rq_total[5m])), 1) > 0.05
+        for: 5m
+        labels: {severity: warning}
+        annotations:
+          summary: "More than 5% of proxied requests return 5xx"
