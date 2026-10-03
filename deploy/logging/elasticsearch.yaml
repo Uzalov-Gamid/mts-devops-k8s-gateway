@@ -1,0 +1,51 @@
+# Single-node Elasticsearch used as the log store (demo sizing, security disabled, cluster-internal only).
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: elasticsearch
+  namespace: logging
+spec:
+  serviceName: elasticsearch
+  replicas: 1
+  selector:
+    matchLabels: {app.kubernetes.io/name: elasticsearch}
+  template:
+    metadata:
+      labels: {app.kubernetes.io/name: elasticsearch}
+    spec:
+      securityContext:
+        fsGroup: 1000
+        seccompProfile: {type: RuntimeDefault}
+      containers:
+        - name: elasticsearch
+          image: docker.elastic.co/elasticsearch/elasticsearch:9.4.7
+          env:
+            - {name: discovery.type, value: single-node}
+            - {name: xpack.security.enabled, value: "false"}
+            - {name: ES_JAVA_OPTS, value: "-Xms512m -Xmx512m"}
+          ports:
+            - {name: http, containerPort: 9200}
+          readinessProbe:
+            httpGet: {path: "/_cluster/health?local=true", port: http}
+            initialDelaySeconds: 20
+            periodSeconds: 10
+          resources:
+            requests: {cpu: 200m, memory: 1Gi}
+            limits: {memory: 1536Mi}
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: {drop: ["ALL"]}
+          volumeMounts:
+            - {name: data, mountPath: /usr/share/elasticsearch/data}
+      volumes:
+        - {name: data, emptyDir: {}}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: elasticsearch
+  namespace: logging
+spec:
+  selector: {app.kubernetes.io/name: elasticsearch}
+  ports:
+    - {name: http, port: 9200, targetPort: http}
