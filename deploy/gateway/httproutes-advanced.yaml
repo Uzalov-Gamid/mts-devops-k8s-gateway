@@ -1,0 +1,56 @@
+# 5. Header-based canary: requests with "x-canary: true" always reach app v2.
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: by-header
+  namespace: demo
+spec:
+  parentRefs:
+    - name: demo
+  rules:
+    - matches:
+        - path: {type: PathPrefix, value: /}
+          headers:
+            - {type: Exact, name: x-canary, value: "true"}
+      backendRefs:
+        - name: app-v2
+          port: 80
+---
+# 6. Redirect: plain HTTP requests to /secure are redirected to HTTPS (301).
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: https-redirect
+  namespace: demo
+spec:
+  parentRefs:
+    - name: demo
+      sectionName: http
+  rules:
+    - matches:
+        - path: {type: PathPrefix, value: /secure}
+      filters:
+        - type: RequestRedirect
+          requestRedirect:
+            scheme: https
+            statusCode: 301
+---
+# 7. Rate-limited endpoint: /limited allows 5 requests per minute (see BackendTrafficPolicy below).
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: limited
+  namespace: demo
+spec:
+  parentRefs:
+    - name: demo
+  rules:
+    - matches:
+        - path: {type: PathPrefix, value: /limited}
+      filters:
+        - type: URLRewrite
+          urlRewrite:
+            path: {type: ReplacePrefixMatch, replacePrefixMatch: /}
+      backendRefs:
+        - name: app-v1
+          port: 80
