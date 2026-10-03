@@ -1,0 +1,14 @@
+# Accepted findings (reviewed).
+misconfigurations:
+  # Elasticsearch writes config, keystore and temp files under /usr/share/elasticsearch at startup;
+  # a read-only root filesystem needs a larger set of emptyDir mounts. Planned together with
+  # persistent storage (issue #1).
+  - id: KSV-0014
+    paths:
+      - logging/elasticsearch.yaml
+    statement: Elasticsearch needs a writable root filesystem for now
+  # Filebeat reads root-owned host log files, so it runs as UID 0; all other restrictions are applied.
+  - id: KSV-0118
+    paths:
+      - logging/filebeat.yaml
+    statement: Filebeat must read host logs as root
