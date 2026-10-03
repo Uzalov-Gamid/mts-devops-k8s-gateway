@@ -1,0 +1,51 @@
+# SLO for traffic through the Gateway, measured at the Envoy data plane.
+#   availability SLO 99.9% (error budget 0.1%), latency SLO: p95 < 250 ms
+# Multi-window, multi-burn-rate alerts as described in the Google SRE Workbook.
+groups:
+  - name: slo-recording
+    interval: 30s
+    rules:
+      - record: slo:http_requests:rate5m
+        expr: sum(rate(envoy_cluster_upstream_rq_total[5m]))
+      - record: slo:http_errors:ratio_rate5m
+        expr: |
+          sum(rate(envoy_cluster_upstream_rq_xx{envoy_response_code_class="5"}[5m]))
+            / clamp_min(sum(rate(envoy_cluster_upstream_rq_total[5m])), 1e-9)
+      - record: slo:http_errors:ratio_rate30m
+        expr: |
+          sum(rate(envoy_cluster_upstream_rq_xx{envoy_response_code_class="5"}[30m]))
+            / clamp_min(sum(rate(envoy_cluster_upstream_rq_total[30m])), 1e-9)
+      - record: slo:http_errors:ratio_rate1h
+        expr: |
+          sum(rate(envoy_cluster_upstream_rq_xx{envoy_response_code_class="5"}[1h]))
+            / clamp_min(sum(rate(envoy_cluster_upstream_rq_total[1h])), 1e-9)
+      - record: slo:http_errors:ratio_rate6h
+        expr: |
+          sum(rate(envoy_cluster_upstream_rq_xx{envoy_response_code_class="5"}[6h]))
+            / clamp_min(sum(rate(envoy_cluster_upstream_rq_total[6h])), 1e-9)
+      - record: slo:http_latency_p95_seconds:5m
+        expr: |
+          histogram_quantile(0.95,
+            sum by (le) (rate(envoy_cluster_upstream_rq_time_bucket[5m]))) / 1000
+  - name: slo-alerts
+    rules:
+      - alert: AvailabilityBudgetBurnFast
+        # 14.4x burn: the 30-day budget would be gone in about 2 days
+        expr: slo:http_errors:ratio_rate5m > (14.4 * 0.001) and slo:http_errors:ratio_rate1h > (14.4 * 0.001)
+        for: 2m
+        labels: {severity: critical, slo: availability}
+        annotations:
+          summary: "Error budget burning 14.4x too fast (5m and 1h windows)"
+      - alert: AvailabilityBudgetBurnSlow
+        # 6x burn: the 30-day budget would be gone in 5 days
+        expr: slo:http_errors:ratio_rate30m > (6 * 0.001) and slo:http_errors:ratio_rate6h > (6 * 0.001)
+        for: 15m
+        labels: {severity: warning, slo: availability}
+        annotations:
+          summary: "Error budget burning 6x too fast (30m and 6h windows)"
+      - alert: LatencyP95High
+        expr: slo:http_latency_p95_seconds:5m > 0.25 and slo:http_requests:rate5m > 0.1
+        for: 10m
+        labels: {severity: warning, slo: latency}
+        annotations:
+          summary: "p95 latency through the Gateway is above 250 ms"
