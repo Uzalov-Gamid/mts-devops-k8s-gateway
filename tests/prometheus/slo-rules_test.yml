@@ -1,0 +1,59 @@
+# Run with: make test-rules  (promtool test rules)
+rule_files:
+  - ../../deploy/monitoring/slo-rules.yml
+evaluation_interval: 30s
+tests:
+  - name: healthy traffic raises no alert
+    interval: 1m
+    input_series:
+      - series: 'envoy_cluster_upstream_rq_total'
+        values: '0+600x400'            # 10 req/s
+      - series: 'envoy_cluster_upstream_rq_xx{envoy_response_code_class="5"}'
+        values: '0+0x400'
+    alert_rule_test:
+      - eval_time: 300m
+        alertname: AvailabilityBudgetBurnFast
+        exp_alerts: []
+      - eval_time: 300m
+        alertname: AvailabilityBudgetBurnSlow
+        exp_alerts: []
+
+  - name: sustained 20 percent 5xx burns the budget fast
+    interval: 1m
+    input_series:
+      - series: 'envoy_cluster_upstream_rq_total'
+        values: '0+600x400'
+      - series: 'envoy_cluster_upstream_rq_xx{envoy_response_code_class="5"}'
+        values: '0+120x400'            # 20% errors
+    promql_expr_test:
+      - expr: slo:http_errors:ratio_rate5m
+        eval_time: 120m
+        exp_samples:
+          - labels: 'slo:http_errors:ratio_rate5m'
+            value: 0.2
+    alert_rule_test:
+      - eval_time: 120m
+        alertname: AvailabilityBudgetBurnFast
+        exp_alerts:
+          - exp_labels: {severity: critical, slo: availability}
+            exp_annotations:
+              summary: "Error budget burning 14.4x too fast (5m and 1h windows)"
+      - eval_time: 120m
+        alertname: AvailabilityBudgetBurnSlow
+        exp_alerts:
+          - exp_labels: {severity: warning, slo: availability}
+            exp_annotations:
+              summary: "Error budget burning 6x too fast (30m and 6h windows)"
+
+  - name: short blip does not page
+    interval: 1m
+    input_series:
+      - series: 'envoy_cluster_upstream_rq_total'
+        values: '0+600x400'
+      - series: 'envoy_cluster_upstream_rq_xx{envoy_response_code_class="5"}'
+        # errors only during minutes 100-103, otherwise flat
+        values: '0x100 0+300x3 900x296'
+    alert_rule_test:
+      - eval_time: 200m
+        alertname: AvailabilityBudgetBurnFast
+        exp_alerts: []
