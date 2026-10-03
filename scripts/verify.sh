@@ -70,7 +70,11 @@ retry 60 graf /api/health >/dev/null && ok "Grafana is healthy" || fail "Grafana
 dash_ok() { graf '/api/search?query=Gateway' | jq -e 'map(select(.uid=="gateway-overview"))|length==1' >/dev/null; }
 retry 60 dash_ok && ok "dashboard 'Gateway and demo app overview' is provisioned" || fail "Grafana dashboard missing"
 ds_ok() { graf /api/datasources/proxy/uid/prom/api/v1/query?query=up | jq -e '.status=="success"' >/dev/null; }
-retry 60 ds_ok && ok "Grafana queries Prometheus through the provisioned datasource" || fail "Grafana datasource cannot reach Prometheus"
+if retry 60 ds_ok; then ok "Grafana queries Prometheus through the provisioned datasource"; else
+  fail "Grafana datasource cannot reach Prometheus"
+  graf /api/datasources || true
+  kubectl -n monitoring logs deploy/grafana --tail=30 || true
+fi
 
 log "Logging (Filebeat -> Elasticsearch)"
 marker="verify-$(date +%s)"

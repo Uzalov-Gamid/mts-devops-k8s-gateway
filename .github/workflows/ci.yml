@@ -17,6 +17,13 @@ jobs:
         run: |
           curl -fsSL https://github.com/yannh/kubeconform/releases/latest/download/kubeconform-linux-amd64.tar.gz | sudo tar xz -C /usr/local/bin kubeconform
           make -s render | kubeconform -strict -summary -ignore-missing-schemas -
+      - name: Trivy misconfiguration scan (fails on HIGH/CRITICAL)
+        run: make scan
+      - name: Trivy image vulnerability report (informational)
+        run: |
+          for img in nginxinc/nginx-unprivileged:1.30-alpine nginx/nginx-prometheus-exporter:1.5.3 prom/prometheus:v3.13.4 grafana/grafana:13.2.3; do
+            docker run --rm aquasec/trivy:latest image --severity CRITICAL --exit-code 0 --quiet "$img" || true
+          done
       - name: Validate Prometheus config
         run: |
           mkdir -p /tmp/tok && echo x > /tmp/tok/token

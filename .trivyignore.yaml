@@ -1,0 +1,16 @@
+# Accepted findings (reviewed).
+misconfigurations:
+  # Elasticsearch writes config, keystore and temp files under /usr/share/elasticsearch at startup;
+  # a read-only root filesystem needs a larger set of emptyDir mounts. Planned together with
+  # persistent storage (issue #1). With a read-only root filesystem Grafana 13 answered 404 on the
+  # datasource proxy in CI, so it is kept writable until that is understood.
+  - id: KSV-0014
+    paths:
+      - logging/elasticsearch.yaml
+      - monitoring/grafana.yaml
+    statement: Elasticsearch and Grafana need a writable root filesystem for now
+  # Filebeat reads root-owned host log files, so it runs as UID 0; all other restrictions are applied.
+  - id: KSV-0118
+    paths:
+      - logging/filebeat.yaml
+    statement: Filebeat must read host logs as root
