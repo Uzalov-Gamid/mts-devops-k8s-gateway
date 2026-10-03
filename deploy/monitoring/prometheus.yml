@@ -1,0 +1,67 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+rule_files:
+  - /etc/prometheus/rules/*.yml
+
+scrape_configs:
+  # Prometheus itself
+  - job_name: prometheus
+    static_configs:
+      - targets: ["localhost:9090"]
+
+  # nginx stub_status via nginx-prometheus-exporter sidecar (pods annotated prometheus.io/scrape)
+  - job_name: nginx
+    kubernetes_sd_configs:
+      - role: pod
+        namespaces: {names: [demo]}
+    relabel_configs:
+      - source_labels: [__meta_kubernetes_pod_container_port_name]
+        regex: metrics
+        action: keep
+      - source_labels: [__meta_kubernetes_pod_label_app_kubernetes_io_version]
+        target_label: version
+      - source_labels: [__meta_kubernetes_pod_name]
+        target_label: pod
+
+  # Envoy Gateway control plane
+  - job_name: envoy-gateway
+    kubernetes_sd_configs:
+      - role: pod
+        namespaces: {names: [envoy-gateway-system]}
+    relabel_configs:
+      - source_labels: [__meta_kubernetes_pod_label_control_plane]
+        regex: envoy-gateway
+        action: keep
+      - source_labels: [__meta_kubernetes_pod_container_port_name]
+        regex: metrics
+        action: keep
+
+  # Envoy proxy data plane (the pods behind the Gateway): HTTP requests, codes, latency
+  - job_name: envoy-proxy
+    metrics_path: /stats/prometheus
+    kubernetes_sd_configs:
+      - role: pod
+        namespaces: {names: [envoy-gateway-system]}
+    relabel_configs:
+      - source_labels: [__meta_kubernetes_pod_label_app_kubernetes_io_name]
+        regex: envoy
+        action: keep
+      - source_labels: [__meta_kubernetes_pod_container_port_name]
+        regex: metrics
+        action: keep
+
+  # CPU / RAM of containers (cAdvisor exposed by the kubelet)
+  - job_name: cadvisor
+    scheme: https
+    metrics_path: /metrics/cadvisor
+    tls_config:
+      insecure_skip_verify: true
+    authorization:
+      credentials_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+    kubernetes_sd_configs:
+      - role: node
+    relabel_configs:
+      - source_labels: [__meta_kubernetes_node_name]
+        target_label: node
