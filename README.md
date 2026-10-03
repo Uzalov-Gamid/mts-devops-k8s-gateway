@@ -107,20 +107,31 @@ Filebeat (DaemonSet) читает stdout/stderr контейнеров namespace
 
 ## Дополнительные возможности
 
-- Gateway API: несколько маршрутов, маршрутизация по path и hostname, два backend, **traffic splitting 80/20**,
-  **TLS termination** (самоподписанный сертификат генерируется при деплое, в git его нет), `URLRewrite`.
-- CI (GitHub Actions, ubuntu-24.04): shellcheck, kubeconform, promtool, `filebeat test config`, затем
-  kind-кластер, двойной `make deploy` (идемпотентность) и `make verify`.
-- Мониторинг: HTTP-метрики через Envoy и nginx-exporter, CPU/RAM через cAdvisor, правила алертов.
-- Логирование: структурированные JSON access-логи, централизованное хранение и поиск в Elasticsearch.
-- Безопасность: pod security (non-root, `readOnlyRootFilesystem`, drop ALL capabilities, seccomp RuntimeDefault), лимиты ресурсов,
-  PodDisruptionBudget, секреты не хранятся в репозитории.
-- Автоматические проверки: `make verify`, отчёт о прогоне `make report` → `docs/test-report.md`.
+Всё перечисленное проверяется автоматически в CI (`make verify`, `make chaos`, `make test-rules`, `make scan`).
+
+- **Gateway API**: несколько маршрутов, маршрутизация по path, hostname и заголовку (`x-canary: true`), два backend,
+  **traffic splitting 80/20**, **TLS termination** (самоподписанный сертификат генерируется при деплое, в git его нет),
+  редирект HTTP→HTTPS (`/secure`), политики Envoy Gateway `BackendTrafficPolicy`: **rate limit** (`/limited`, 5 запросов в минуту),
+  retries и timeout.
+- **Устойчивость**: `make chaos` убивает pod'ы и делает rolling restart под нагрузкой через Gateway и требует 0 ошибок
+  (в CI: 0 из 420 запросов). Для этого у приложения graceful shutdown (preStop), PodDisruptionBudget и 2 реплики.
+- **SLO и алерты**: SLO доступности 99,9% и латентности (p95 < 250 мс) на уровне Envoy, multi-window burn-rate алерты
+  (`deploy/monitoring/slo-rules.yml`), юнит-тесты правил `promtool test rules` (`make test-rules`).
+- **Grafana**: дашборд «Gateway and demo app overview» (RPS, коды ответов, доля 5xx, p95, CPU/RAM) создаётся при деплое.
+  Открыть: `kubectl -n monitoring port-forward svc/grafana 3000:3000` (просмотр без логина, пароль админа генерируется при деплое).
+- **CI** (GitHub Actions, ubuntu-24.04): shellcheck, kubeconform, promtool (конфиг и юнит-тесты), `filebeat test config`,
+  Trivy (misconfiguration, падает на HIGH/CRITICAL; отчёт по образам), затем kind-кластер, двойной `make deploy`
+  (идемпотентность), `make verify` и `make chaos`.
+- **Логирование**: структурированные JSON access-логи, централизованное хранение и поиск в Elasticsearch.
+- **Безопасность**: pod security (non-root, `readOnlyRootFilesystem` где возможно, drop ALL capabilities, seccomp RuntimeDefault),
+  лимиты ресурсов, PodDisruptionBudget, секреты не хранятся в репозитории, исключения Trivy обоснованы в `.trivyignore.yaml`.
+- Отчёт о прогоне: `docs/test-report.md`, `make report` пересоздаёт его для вашего кластера.
 
 ## Известные ограничения
 
 - Скрипт `cluster/kubeadm/install.sh` в CI не запускается (нужна полноценная ВМ); в CI проверен весь остальной стек на kind под ubuntu-24.04. Отчёт: `docs/test-report.md`.
 - Одна нода и `emptyDir` для Prometheus/Elasticsearch: данные теряются при пересоздании pod. Для продакшна нужны PVC, реплики и ILM.
+- Elasticsearch и Grafana работают с записываемой корневой ФС (см. `.trivyignore.yaml`).
 - Elasticsearch без аутентификации, доступен только внутри кластера (демонстрационная конфигурация).
 - Самоподписанный сертификат, `curl -k`. Для боевого TLS нужен cert-manager.
 - Нет облачного балансировщика: Gateway опубликован через NodePort 30080/30443.
@@ -134,9 +145,10 @@ cluster/kubeadm/   установка Kubernetes на Ubuntu 24.04 (install.sh, 
 cluster/kind/      конфиг kind для быстрых проверок и CI
 deploy/app/        nginx v1/v2 (Kustomize)
 deploy/gateway/    Envoy Gateway values, EnvoyProxy, GatewayClass, Gateway, HTTPRoute
-deploy/monitoring/ Prometheus, правила
+deploy/monitoring/ Prometheus, правила, SLO, Grafana
+tests/prometheus/  юнит-тесты правил алертов
 deploy/logging/    Elasticsearch, Filebeat
-scripts/           deploy / verify / report / teardown
+scripts/           deploy / verify / chaos / report / teardown
 docs/passport/     паспорт решения
 .github/workflows/ CI
 ```

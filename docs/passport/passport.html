@@ -57,20 +57,22 @@ svg text { font: 8pt "DejaVu Sans", Arial, sans-serif; }
 <tr><td>Маршрутизация по path и hostname, несколько backend</td><td>HTTPRoute <code>by-path</code>, <code>by-host</code>, два Deployment (v1/v2); показывает базовые возможности Gateway API.</td><td><code>curl /v2</code>; <code>curl -H 'Host: v2.demo.local' /</code></td></tr>
 <tr><td>Traffic splitting</td><td>HTTPRoute <code>canary</code>, веса 80/20: безопасный выкат новой версии.</td><td>20 запросов на <code>/canary</code> → в ответах оба варианта</td></tr>
 <tr><td>TLS</td><td>HTTPS listener, сертификат генерируется при деплое (<code>openssl</code>) и не хранится в git.</td><td><code>curl -k https://NODE:30443/</code></td></tr>
-<tr><td>CI</td><td>GitHub Actions: shellcheck, kubeconform, promtool, filebeat test config, e2e на kind с двойным деплоем.</td><td>вкладка Actions</td></tr>
-<tr><td>Расширенный мониторинг</td><td>Метрики Envoy (запросы, коды, latency), CPU/RAM (cAdvisor), recording и alert-правила.</td><td>запросы из README</td></tr>
-<tr><td>Централизованные логи</td><td>Elasticsearch как хранилище и поиск, структурированный JSON.</td><td>запрос к <code>demo-logs-*</code></td></tr>
-<tr><td>Безопасность и надёжность</td><td>non-root, readOnlyRootFilesystem, drop ALL, seccomp, лимиты ресурсов, PDB, 2 реплики, отчёт о прогоне <code>make report</code>.</td><td><code>kubectl -n demo get pod -o yaml</code></td></tr>
+<tr><td>Устойчивость</td><td><code>make chaos</code>: под нагрузкой через Gateway убиваются pod'ы и делается rolling restart, ошибок 0 (graceful shutdown, PDB, 2 реплики).</td><td><code>make chaos</code>; в CI: 0 из 420 запросов</td></tr>
+<tr><td>SLO и алерты</td><td>SLO доступности 99,9% и p95 &lt; 250 мс на Envoy, burn-rate алерты, юнит-тесты <code>promtool</code>.</td><td><code>make test-rules</code></td></tr>
+<tr><td>Политики Gateway</td><td>Маршрут по заголовку, редирект HTTP→HTTPS, rate limit, retries и timeout (Envoy Gateway <code>BackendTrafficPolicy</code>).</td><td><code>curl -H 'x-canary: true' /</code>; <code>/secure</code>, <code>/limited</code></td></tr>
+<tr><td>Grafana</td><td>Дашборд (RPS, коды, 5xx, p95, CPU/RAM) разворачивается автоматически.</td><td><code>port-forward svc/grafana 3000</code></td></tr>
+<tr><td>CI и безопасность</td><td>Actions: shellcheck, kubeconform, promtool, Trivy, e2e на kind с двойным деплоем; non-root, drop ALL, лимиты, PDB.</td><td>вкладка Actions; <code>make scan</code></td></tr>
+<tr><td>Логи и метрики</td><td>Elasticsearch как хранилище, JSON-логи; метрики Envoy, nginx и cAdvisor.</td><td>запросы из README</td></tr>
 </table>
 
 <h2 class="pb">3. Ревью работы и масштабирование</h2>
-<b>Главная особенность.</b> Всё решение собирается и проверяется двумя командами (<code>make deploy</code>, <code>make verify</code>), причём проверка охватывает всю цепочку от запроса через Gateway до метрики в Prometheus и записи лога в Elasticsearch. Тот же сценарий выполняется в CI на каждый коммит.
+<b>Главная особенность.</b> Решение не только разворачивается, но и доказывает свою работу: <code>make verify</code> проходит всю цепочку от запроса через Gateway до метрики в Prometheus и записи лога в Elasticsearch, <code>make chaos</code> показывает отсутствие ошибок при убийстве pod'ов, а SLO-алерты покрыты юнит-тестами. Всё это выполняется в CI на каждый PR.
 <br><br><b>Самое сложное решение.</b> Выбор между Envoy Gateway, NGINX Gateway Fabric и Cilium Gateway. Выбрал Envoy Gateway: полная поддержка стандартного Gateway API, не требует особого CNI, отдаёт метрики Envoy для HTTP-кодов и latency из коробки.
 <br><br><b>Предложения по развитию.</b>
 <ul>
 <li>Постоянные тома (PVC) и несколько реплик для Prometheus и Elasticsearch; ILM для логов (нужен StorageClass, например Longhorn или Ceph).</li>
 <li>cert-manager и ACME/внутренний CA вместо самоподписанного сертификата (нужен DNS и внешний доступ для ACME либо корпоративный CA).</li>
-<li>Alertmanager с уведомлениями, Grafana с дашбордами (нужен канал: Telegram, e-mail).</li>
+<li>Alertmanager с уведомлениями (нужен канал: Telegram, e-mail), SLO по услугам абонентов.</li>
 <li>NetworkPolicy и другой CNI (Calico или Cilium), Pod Security Admission в режиме restricted.</li>
 <li>Высокая доступность control plane (3 ноды, kube-vip), MetalLB для LoadBalancer на bare metal.</li>
 <li>GitOps (Argo CD или Flux) вместо запуска из Make, Argo Rollouts для canary.</li>
