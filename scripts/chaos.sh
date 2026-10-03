@@ -2,7 +2,7 @@
 # Resilience test: keep sending requests through the Gateway while app pods are killed
 # and the deployment is restarted. Passes only if not a single request fails.
 source "$(dirname "$0")/lib.sh"
-need kubectl curl
+need kubectl curl jq
 cluster_reachable
 HTTP="$(gateway_http_url)"
 RESULT="$(mktemp)"; trap 'rm -f "$RESULT"; kill "${LOAD_PID:-0}" 2>/dev/null || true' EXIT
@@ -23,9 +23,12 @@ rm -f "$RESULT.stop"; load & LOAD_PID=$!
 sleep 3
 
 for i in 1 2 3; do
-  pod="$(kubectl -n demo get pod -l app.kubernetes.io/name=hello,app.kubernetes.io/version=v1 -o jsonpath='{.items[0].metadata.name}')"
+  # skip pods that are already terminating (they stay listed during preStop/grace period)
+  pod="$(kubectl -n demo get pod -l app.kubernetes.io/name=hello,app.kubernetes.io/version=v1 -o json \
+    | jq -r '[.items[] | select(.metadata.deletionTimestamp == null)][0].metadata.name')"
   echo "  killing pod $pod ($i/3)"
-  kubectl -n demo delete pod "$pod" --wait=false >/dev/null
+  kubectl -n demo delete pod "$pod" --wait=false --ignore-not-found >/dev/null
+  kubectl -n demo wait --for=delete "pod/$pod" --timeout=120s >/dev/null 2>&1 || true
   kubectl -n demo rollout status deploy/app-v1 --timeout=120s >/dev/null
   sleep 3
 done
