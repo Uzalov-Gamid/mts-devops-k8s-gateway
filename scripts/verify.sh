@@ -49,6 +49,13 @@ retry 90 has_requests && ok "query sum(nginx_http_requests_total) = $(q 'sum(ngi
 has_envoy() { [[ -n "$(q 'sum(envoy_cluster_upstream_rq_total)')" ]]; }
 retry 90 has_envoy && ok "query sum(envoy_cluster_upstream_rq_total) = $(q 'sum(envoy_cluster_upstream_rq_total)')" || fail "envoy_cluster_upstream_rq_total missing"
 
+has_slo() { [[ -n "$(q 'slo:http_requests:rate5m')" ]]; }
+retry 120 has_slo && ok "SLO recording rule slo:http_requests:rate5m is evaluated" || fail "SLO recording rules produce no data"
+has_hist() { [[ -n "$(q 'sum(envoy_cluster_upstream_rq_time_bucket)')" ]]; }
+retry 60 has_hist && ok "latency histogram envoy_cluster_upstream_rq_time_bucket present" || fail "Envoy latency histogram missing"
+has_5xx() { [[ -n "$(q 'sum(envoy_cluster_upstream_rq_xx{envoy_response_code_class="2"})')" ]]; }
+retry 60 has_5xx && ok "response-code series envoy_cluster_upstream_rq_xx present" || fail "Envoy response-code series missing"
+
 log "Logging (Filebeat -> Elasticsearch)"
 marker="verify-$(date +%s)"
 body "$HTTP/$marker" >/dev/null
