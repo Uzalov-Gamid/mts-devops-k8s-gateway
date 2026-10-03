@@ -1,7 +1,7 @@
 .DEFAULT_GOAL := help
 SHELL := /bin/bash
 
-.PHONY: chaos test-rules passport report help kind-up kind-down deploy verify teardown lint render
+.PHONY: scan chaos test-rules passport report help kind-up kind-down deploy verify teardown lint render
 
 help: ## Show targets
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN{FS=":.*?## "}{printf "  %-10s %s\n",$$1,$$2}'
@@ -39,3 +39,6 @@ test-rules: ## Unit-test Prometheus alert rules with promtool (needs Docker)
 
 chaos: ## Kill pods under load and expect zero failed requests
 	./scripts/chaos.sh
+
+scan: ## Trivy misconfiguration scan of deploy/ (HIGH,CRITICAL fail; needs Docker)
+	docker run --rm -v $(CURDIR):/w -w /w aquasec/trivy:latest config --severity HIGH,CRITICAL --ignorefile .trivyignore.yaml --exit-code 1 deploy
