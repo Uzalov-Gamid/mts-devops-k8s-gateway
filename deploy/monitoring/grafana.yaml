@@ -36,8 +36,10 @@ spec:
             limits: {memory: 384Mi}
           securityContext:
             allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
             capabilities: {drop: ["ALL"]}
           volumeMounts:
+            - {name: tmp, mountPath: /tmp}
             - {name: datasource, mountPath: /etc/grafana/provisioning/datasources/datasource.yaml, subPath: datasource.yaml}
             - {name: providers, mountPath: /etc/grafana/provisioning/dashboards/dashboards.yaml, subPath: dashboards.yaml}
             - {name: dashboards, mountPath: /var/lib/grafana/dashboards}
@@ -50,6 +52,7 @@ spec:
         - name: dashboards
           configMap: {name: grafana-dashboards}
         - {name: data, emptyDir: {}}
+        - {name: tmp, emptyDir: {}}
 ---
 apiVersion: v1
 kind: Service
