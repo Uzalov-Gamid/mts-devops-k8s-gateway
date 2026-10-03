@@ -30,6 +30,13 @@ retry 120 body "$HTTP/" >/dev/null || fail "gateway did not answer on $HTTP/"
 [[ "$(body -H 'Host: v2.demo.local' "$HTTP/")" == "Hello World! (v2)" ]] \
                                                          && ok "Host v2.demo.local -> v2"            || fail "hostname routing"
 [[ "$(body -k "$HTTPS/")" == "Hello World!" ]]            && ok "HTTPS (TLS terminated at the Gateway)" || fail "HTTPS listener"
+[[ "$(body -H 'x-canary: true' "$HTTP/")" == "Hello World! (v2)" ]] && ok "header x-canary: true -> v2"  || fail "header-based routing"
+loc="$(curl -s -o /dev/null -w '%{http_code} %{redirect_url}' --max-time 10 "$HTTP/secure")"
+[[ "$loc" == 301\ https://* ]] && ok "GET /secure -> 301 redirect to HTTPS ($loc)" || fail "HTTP->HTTPS redirect (got: $loc)"
+limited=0; for _ in $(seq 1 12); do [[ "$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 "$HTTP/limited")" == 429 ]] && limited=$((limited+1)); done
+(( limited > 0 )) && ok "rate limit on /limited: $limited of 12 requests answered 429" || fail "rate limit did not trigger on /limited"
+kubectl -n demo get backendtrafficpolicy -o jsonpath='{range .items[*]}{.metadata.name}={.status.ancestors[0].conditions[?(@.type=="Accepted")].status} {end}' | grep -vq False \
+  && ok "BackendTrafficPolicies accepted" || fail "a BackendTrafficPolicy was not accepted"
 v2=0; for _ in $(seq 1 100); do [[ "$(body "$HTTP/canary")" == *v2* ]] && v2=$((v2+1)); done
 (( v2 > 0 && v2 < 100 )) && ok "traffic split /canary: ${v2}/100 requests reached v2 (target ~20)" || fail "canary split: ${v2}/100 reached v2"
 
