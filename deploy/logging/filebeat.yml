@@ -1,0 +1,46 @@
+# Filebeat reads container logs of the demo namespace from the node and ships them to Elasticsearch.
+filebeat.autodiscover:
+  providers:
+    - type: kubernetes
+      node: ${NODE_NAME}
+      hints.enabled: false
+      templates:
+        - condition:
+            equals:
+              kubernetes.namespace: demo
+          config:
+            - type: filestream
+              id: demo-${data.kubernetes.pod.name}-${data.kubernetes.container.id}
+              paths:
+                - /var/log/containers/*-${data.kubernetes.container.id}.log
+              parsers:
+                - container: ~
+              prospector.scanner.symlinks: true
+
+processors:
+  - add_kubernetes_metadata:
+      host: ${NODE_NAME}
+      matchers:
+        - logs_path:
+            logs_path: "/var/log/containers/"
+  # nginx access log lines are JSON (see deploy/app/base/nginx.conf.template); error log lines stay plain text.
+  - decode_json_fields:
+      fields: ["message"]
+      target: "nginx"
+      overwrite_keys: false
+      add_error_key: false
+  - drop_fields:
+      fields: ["agent", "ecs", "input", "log.offset"]
+      ignore_missing: true
+
+setup.ilm.enabled: false
+setup.template.enabled: true
+setup.template.name: "demo-logs"
+setup.template.pattern: "demo-logs-*"
+
+output.elasticsearch:
+  hosts: ["http://elasticsearch.logging.svc:9200"]
+  index: "demo-logs-%{+yyyy.MM.dd}"
+
+logging.level: info
+http.enabled: false
